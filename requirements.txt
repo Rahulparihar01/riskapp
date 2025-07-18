@@ -3,3 +3,4 @@ fastapi
 pandas
 gunicorn
 google-cloud-bigquery
+db-dtypes
