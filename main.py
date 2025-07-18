@@ -3,15 +3,19 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 import pandas as pd
 from fastapi.responses import JSONResponse
-
+import os 
+import json
 # Initialize FastAPI app
 app = FastAPI()
 
 # Service account key file path
-key_path = "loyal-weaver-427600-s9-77fc8a9ce15a.json"
-
+#key_path = "loyal-weaver-427600-s9-77fc8a9ce15a.json"
+service_account_json = os.getenv("GCP_CREDENTIALS_JSON")
+if not service_account_json:
+    raise RuntimeError("GCP_CREDENTIALS_JSON environment variable not set")
 # Set up BigQuery credentials and client
-credentials = service_account.Credentials.from_service_account_file(key_path)
+credentials_dict = json.loads(service_account_json)
+credentials = service_account.Credentials.from_service_account_file(credentials_dict)
 client = bigquery.Client(credentials=credentials, project=credentials.project_id)
 dataset_id = "CyberSecurity"
 
