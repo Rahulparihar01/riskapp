@@ -15,7 +15,7 @@ if not service_account_json:
     raise RuntimeError("GCP_CREDENTIALS_JSON environment variable not set")
 # Set up BigQuery credentials and client
 credentials_dict = json.loads(service_account_json)
-credentials = service_account.Credentials.from_service_account_file(credentials_dict)
+credentials = service_account.Credentials.from_service_account_info(credentials_dict)
 client = bigquery.Client(credentials=credentials, project=credentials.project_id)
 dataset_id = "CyberSecurity"
 
