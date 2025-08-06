@@ -92,7 +92,41 @@ def get_data(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+import json 
 
+
+@app.get("/newsarticle")
+def get_data(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1)
+):
+    table = "newsarticle"
+    full_table_id = f"{client.project}.{dataset_id}.{table}"
+
+    try:
+        offset = (page - 1) * page_size
+        query = f"SELECT * FROM `{full_table_id}` LIMIT {page_size + 1} OFFSET {offset}"
+        df = client.query(query).to_dataframe()
+
+        has_more = len(df) > page_size
+        df = df.head(page_size)
+
+        # 🔥 Convert datetime columns to ISO format strings
+        datetime_cols = ["createdAt", "datePublished", "dateUpdated"]
+        for col in datetime_cols:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: x.isoformat() if pd.notnull(x) else None)
+
+        return JSONResponse(content={
+            "page": page,
+            "page_size": page_size,
+            "next_page": page + 1 if has_more else None,
+            "has_more": has_more,
+            "records": json.loads(df.to_json(orient="records"))
+        })
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 
