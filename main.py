@@ -18,6 +18,11 @@ credentials_dict = json.loads(service_account_json)
 credentials = service_account.Credentials.from_service_account_info(credentials_dict)
 client = bigquery.Client(credentials=credentials, project=credentials.project_id)
 dataset_id = "CyberSecurity"
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
+
+
 
 @app.get("/get-finalnew3-data")
 def get_data(
