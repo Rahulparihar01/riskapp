@@ -186,13 +186,44 @@ def get_data(
 
 
 
+# @app.get("/get-cpes-data")
+# def get_data(
+#     # table: str = Query(..., description="Table name inside the CyberSecurity dataset"),
+#     page: int = Query(1, ge=1),
+#     page_size: int = Query(10, ge=1)
+# ):
+#     table= "cpes"
+#     full_table_id = f"{client.project}.{dataset_id}.{table}"
+
+#     try:
+#         offset = (page - 1) * page_size
+#         query = f"SELECT * FROM `{full_table_id}` LIMIT {page_size + 1} OFFSET {offset}"
+#         df = client.query(query).to_dataframe()
+
+#         # Check if there are more rows
+#         has_more = len(df) > page_size
+#         df = df.head(page_size)  # Trim to page_size if we fetched extra
+
+#         return JSONResponse(content={
+#             "page": page,
+#             "page_size": page_size,
+#             "next_page": page + 1 if has_more else None,
+#             "has_more": has_more,
+#             "records": df.to_dict(orient="records")
+#         })
+
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
 @app.get("/get-cpes-data")
 def get_data(
-    # table: str = Query(..., description="Table name inside the CyberSecurity dataset"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1)
 ):
-    table= "cpes"
+    table = "cpes"
     full_table_id = f"{client.project}.{dataset_id}.{table}"
 
     try:
@@ -200,9 +231,15 @@ def get_data(
         query = f"SELECT * FROM `{full_table_id}` LIMIT {page_size + 1} OFFSET {offset}"
         df = client.query(query).to_dataframe()
 
+        # Convert NumPy/ndarray types → Python native types
+        df = df.applymap(
+            lambda x: x.tolist() if isinstance(x, np.ndarray) 
+            else (x.item() if isinstance(x, (np.int64, np.float64)) else x)
+        )
+
         # Check if there are more rows
         has_more = len(df) > page_size
-        df = df.head(page_size)  # Trim to page_size if we fetched extra
+        df = df.head(page_size)
 
         return JSONResponse(content={
             "page": page,
@@ -214,4 +251,5 @@ def get_data(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
