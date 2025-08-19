@@ -3,6 +3,7 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 import pandas as pd
 from fastapi.responses import JSONResponse
+import numpy as np
 import os 
 import json
 # Initialize FastAPI app
