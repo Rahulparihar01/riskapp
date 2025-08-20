@@ -4,6 +4,7 @@ from google.oauth2 import service_account
 import pandas as pd
 from fastapi.responses import JSONResponse
 import numpy as np
+import datetime
 import os 
 import json
 # Initialize FastAPI app
@@ -249,6 +250,175 @@ def get_data(
             "has_more": has_more,
             "records": df.to_dict(orient="records")
         })
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.get("/filter-date-cve")
+def filter_cve(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1),
+    start_date: str = Query(..., description="Start date in YYYY-MM-DD format"),
+    end_date: str = Query(..., description="End date in YYYY-MM-DD format")
+):
+    table = "CVEs"
+    full_table_id = f"{client.project}.{dataset_id}.{table}"
+
+    try:
+        offset = (page - 1) * page_size
+        query = f"""
+            SELECT *
+            FROM `{full_table_id}`
+            WHERE SAFE_CAST(SAFE_CAST(published_date AS TIMESTAMP) AS DATE) 
+                  BETWEEN @start_date AND @end_date
+            ORDER BY SAFE_CAST(SAFE_CAST(published_date AS TIMESTAMP) AS DATE) DESC
+            LIMIT {page_size + 1}
+            OFFSET {offset}
+        """
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("start_date", "DATE", start_date),
+                bigquery.ScalarQueryParameter("end_date", "DATE", end_date)
+            ]
+        )
+
+        df = client.query(query, job_config=job_config).to_dataframe()
+
+        has_more = len(df) > page_size
+        df = df.head(page_size)
+
+        return JSONResponse(content={
+            "page": page,
+            "page_size": page_size,
+            "next_page": page + 1 if has_more else None,
+            "has_more": has_more,
+            "records": df.to_dict(orient="records")
+        })
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/get-cve_id")
+def get_cve(
+    cve_id: str = Query(..., description="CVE ID to search, e.g., CVE-2025-23118")
+):
+    table = "CVEs"
+    full_table_id = f"{client.project}.{dataset_id}.{table}"
+
+    try:
+        query = f"""
+            SELECT *
+            FROM `{full_table_id}`
+            WHERE cve_id = @cve_id
+            LIMIT 1
+        """
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("cve_id", "STRING", cve_id)
+            ]
+        )
+
+        df = client.query(query, job_config=job_config).to_dataframe()
+
+        if df.empty:
+            return JSONResponse(content={"message": f"No record found for {cve_id}"}, status_code=404)
+
+        return JSONResponse(content=df.to_dict(orient="records")[0])  # return first match
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.get("/get-cpe-id")
+def get_cpe(
+    cve_id: str = Query(..., description="CVE ID to search, e.g., CVE-2025-23118")
+):
+    table = "cpes"
+    full_table_id = f"{client.project}.{dataset_id}.{table}"
+
+    try:
+        query = f"""
+            SELECT *
+            FROM `{full_table_id}`
+            WHERE cve_id = @cve_id
+            LIMIT 1
+        """
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("cve_id", "STRING", cve_id)
+            ]
+        )
+
+        df = client.query(query, job_config=job_config).to_dataframe()
+
+        if df.empty:
+            return JSONResponse(
+                content={"message": f"No record found for {cve_id}"}, 
+                status_code=404
+            )
+
+        # Convert NumPy types to Python native types
+        record = df.to_dict(orient="records")[0]
+        clean_record = {
+            k: (v.tolist() if isinstance(v, np.ndarray) else v.item() if hasattr(v, "item") else v)
+            for k, v in record.items()
+        }
+
+        return JSONResponse(content=clean_record)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/get-cwes-id")
+def get_cwe_id(
+    cve_id: str = Query(..., description="CVE ID to search, e.g., CVE-2025-23118")
+):
+    table = "CWEs_test"
+    full_table_id = f"{client.project}.{dataset_id}.{table}"
+
+    try:
+        query = f"""
+            SELECT *
+            FROM `{full_table_id}`
+            WHERE cve_id = @cve_id
+            LIMIT 1
+        """
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("cve_id", "STRING", cve_id)
+            ]
+        )
+
+        df = client.query(query, job_config=job_config).to_dataframe()
+
+        if df.empty:
+            return JSONResponse(
+                content={"message": f"No record found for {cve_id}"},
+                status_code=404
+            )
+
+        record = df.to_dict(orient="records")[0]
+
+        # Convert NumPy, datetime, and date types
+        clean_record = {}
+        for k, v in record.items():
+            if isinstance(v, np.ndarray):
+                clean_record[k] = v.tolist()
+            elif hasattr(v, "item"):  # numpy scalar
+                clean_record[k] = v.item()
+            elif isinstance(v, (datetime.datetime, datetime.date)):
+                clean_record[k] = v.isoformat()  # "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM:SS"
+            else:
+                clean_record[k] = v
+
+        return JSONResponse(content=clean_record)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
