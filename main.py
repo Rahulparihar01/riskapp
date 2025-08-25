@@ -168,11 +168,11 @@ def get_data(
         offset = (page - 1) * page_size
         query = f"SELECT * FROM `{full_table_id}` LIMIT {page_size + 1} OFFSET {offset}"
         df = client.query(query).to_dataframe()
-        print('dhdhffj')
+        # print('dhdhffj')
         # Check if there are more rows
         has_more = len(df) > page_size
         df = df.head(page_size)  # Trim to page_size if we fetched extra
-        print(df)
+        # print(df)
         records = jsonable_encoder(df.to_dict(orient="records"))
 
         return JSONResponse(content={
