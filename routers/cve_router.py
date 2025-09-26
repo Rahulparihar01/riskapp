@@ -56,7 +56,7 @@ def get_data(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/search_by_cve_id/")
+@router.get("/cve_id/")
 def get_cve_by_id(cve_id: str):
     query = f"SELECT * FROM `{full_table_id}` WHERE cve_id = '{cve_id}' LIMIT 1"
     df = query_bigquery(query)
